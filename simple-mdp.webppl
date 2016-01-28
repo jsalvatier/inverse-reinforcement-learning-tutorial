@@ -1,0 +1,70 @@
+var actions = [0,1];
+var alpha = .5;
+
+var newState = function(pos, timeLeft) { 
+    return { pos : pos, timeLeft : timeLeft};
+}
+
+var transition = function (state, action) { 
+    console.log("action ", action);
+    var pos = state.pos + action;
+
+    console.log("pos ", pos);
+    return newState(pos, state.timeLeft -1);
+    };
+
+var isFinal = function(state) { 
+    return (state.pos >= 5) || (state.timeLeft <= 0);
+};
+
+
+var utility = function(state, action) { 
+    return Math.max(state.pos - 2, 0);
+};
+
+var agent = function(state) {
+    return Enumerate(function () { 
+        var action = uniformDraw(actions);
+        factor(alpha * expUtility(state, action));
+        return action
+    }, 10);
+};
+
+var expUtility = function(state, action) { 
+    if (isFinal(state)) { 
+        return utility(state, action);
+    } else { 
+        var u = utility(state, action);
+
+        var nextU = function () {
+            var nextState = transition(state, action);
+            var nextAction = sample(agent(nextState));
+            console.log("nextState ", nextState);
+            return expUtility(nextState, nextAction);
+        };
+        return u + expectation(Enumerate(nextU, 10));
+    }
+};
+
+var initHistory = function(state) { 
+    return [state];
+}
+var updateHistory = function(history, state) { 
+    return history.push(state);
+}
+
+
+var simulateAgent = function(state, history) {
+    if (isFinal(state)) {
+        console.log("final");
+        return history;
+    } else {
+        var nextAction = sample(agent(state));
+        var newState = transition(state, nextAction);
+        updateHistory(history, newState);
+        return simulateAgent(newState, history);
+    }
+};
+
+var start = newState(0, 5);
+simulateAgent(start, initHistory(start));
