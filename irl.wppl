@@ -1,5 +1,4 @@
 var actions = [0,1];
-var alpha = .5;
 
 var newState = function(pos, timeLeft) { 
     return { pos : pos, timeLeft : timeLeft};
@@ -10,27 +9,29 @@ var actionState = function(state, action) {
 }
 
 
-var makeWorld = function() {
+var makeWorld = function(Us) {
+    var alpha = 5.5;
+
     var transition = function (state, action) { 
         var pos = state.pos + action;
         return newState(pos, state.timeLeft -1);
-        };
+    };
 
     var isFinal = function(state) { 
-        return (state.pos >= 5) || (state.timeLeft <= 0);
+        return (state.pos >= Us.length-1) || (state.timeLeft <= 0);
     };
 
     var utility = function(state, action) { 
-        return Math.max(state.pos - 2, 0);
-        };
+        return Us[state.pos];
+    };
 
     var agent = function(state) {
         return Enumerate(function () { 
             var action = uniformDraw(actions);
             factor(alpha * expUtility(state, action));
             return action
-        }, 10)
-        };
+        })
+    };
 
     var expUtility = function(state, action) { 
         if (isFinal(state)) { 
@@ -43,11 +44,12 @@ var makeWorld = function() {
                 var nextAction = sample(agent(nextState));
                 return expUtility(nextState, nextAction);
             };
-            return u + expectation(Enumerate(nextU, 10));
+            return u + expectation(Enumerate(nextU));
         }
     };
 
     return {
+        Us : Us,
         utility : utility,
         agent : agent,
         expUtility : expUtility,
@@ -72,7 +74,7 @@ var simulateAgent = function(world, state, history) {
 
     console.log("state ", state);
     if (isFinal(state)) {
-        console.log("final", isFinal(state) );
+        updateHistory(history, state);
         return history;
     } else {
         var actiond = agent(state);
@@ -80,33 +82,41 @@ var simulateAgent = function(world, state, history) {
 
         var nextAction = sample(agent(state));
         console.log("nextAction", nextAction);
+
         var newState = transition(state, nextAction);
-        updateHistory(history, actionState(newState, nextAction));
+        //record OLD state with action tacked on
+        updateHistory(history, actionState(state, nextAction));
         return simulateAgent(world, newState, history);
     }
 };
 
 
 var start = newState(0, 5);
-/*
-var history = simulateAgent(makeWorld(), start, initHistory(start));
+var actualUtilities = [0,1,2];
+var history = simulateAgent(makeWorld(actualUtilities), start, [ ]);
 
-Enummerate(function () {
-    var agentParams = uniformDraw()
+console.log("agent simulation");
+console.log(history);
+var possibleUtilities= [[0,0,0], [0,0,1], [0,1,1], [1,1,1], [1,1,0], [1,0,0],[1,1,2],[0,1,2]];
+
+Enumerate(function () {
+    var agentParams = uniformDraw(possibleUtilities);
+    var world = makeWorld(agentParams);
+
+    var agent = world.agent;
 
     var likelihood = function(history, i, totalLike) { 
-        if (i < history.length) {
+        if (i < history.length -1) {
             var actionDist = agent(history[i]);
             var like = actionDist.score([],history[i].action);
+             
             return likelihood(history, i+1, totalLike + like);
         } else {
             return totalLike;
         }
     };
     
-    factor(likelihood(history, 0, 0));
-    return agenParams;
+    var like = likelihood(history, 0, 0)
+    factor(like);
+    return agentParams;
 });
-*/
-
-simulateAgent(makeWorld(), start, initHistory(start));
