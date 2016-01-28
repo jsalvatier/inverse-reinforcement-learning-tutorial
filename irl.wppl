@@ -5,42 +5,57 @@ var newState = function(pos, timeLeft) {
     return { pos : pos, timeLeft : timeLeft};
 }
 
-var transition = function (state, action) { 
-    var pos = state.pos + action;
-    return newState(pos, state.timeLeft -1);
+var actionState = function(state, action) { 
+    return { pos : state.pos, timeLeft : state.timeLeft, action : action };
+}
+
+
+var makeWorld = function() {
+    var transition = function (state, action) { 
+        var pos = state.pos + action;
+        return newState(pos, state.timeLeft -1);
+        };
+
+    var isFinal = function(state) { 
+        return (state.pos >= 5) || (state.timeLeft <= 0);
     };
 
-var isFinal = function(state) { 
-    return (state.pos >= 5) || (state.timeLeft <= 0);
-};
-
-
-var utility = function(state, action) { 
-    return Math.max(state.pos - 2, 0);
-};
-
-var agent = function(state) {
-    return Enumerate(function () { 
-        var action = uniformDraw(actions);
-        factor(alpha * expUtility(state, action));
-        return action
-    }, 10);
-};
-
-var expUtility = function(state, action, delay) { 
-    if (isFinal(state)) { 
-        return utility(state, action);
-    } else { 
-        var u = utility(state, action);
-
-        var nextU = function () {
-            var nextState = transition(state, action);
-            var nextAction = sample(agent(nextState));
-            return expUtility(nextState, nextAction);
+    var utility = function(state, action) { 
+        return Math.max(state.pos - 2, 0);
         };
-        return u + expectation(Enumerate(nextU, 10));
-    }
+
+    var agent = function(state) {
+        return Enumerate(function () { 
+            var action = uniformDraw(actions);
+            factor(alpha * expUtility(state, action));
+            return action
+        }, 10)
+        };
+
+    var expUtility = function(state, action) { 
+        if (isFinal(state)) { 
+            return utility(state, action);
+        } else { 
+            var u = utility(state, action);
+
+            var nextU = function () {
+                var nextState = transition(state, action);
+                var nextAction = sample(agent(nextState));
+                return expUtility(nextState, nextAction);
+            };
+            return u + expectation(Enumerate(nextU, 10));
+        }
+    };
+
+    return {
+        utility : utility,
+        agent : agent,
+        expUtility : expUtility,
+        isFinal : isFinal,
+        transition : transition
+    };
 };
+
 
 var initHistory = function(state) { 
     return [state];
@@ -50,23 +65,48 @@ var updateHistory = function(history, state) {
 }
 
 
-var simulateAgent = function(state, history) {
+var simulateAgent = function(world, state, history) {
+    var agent = world.agent;
+    var transition = world.transition;
+    var isFinal = world.isFinal;
+
+    console.log("state ", state);
     if (isFinal(state)) {
-        console.log("final");
+        console.log("final", isFinal(state) );
         return history;
     } else {
         var actiond = agent(state);
         console.log("actiond ", actiond.hist);
+
         var nextAction = sample(agent(state));
+        console.log("nextAction", nextAction);
         var newState = transition(state, nextAction);
-        updateHistory(history, newState);
-        return simulateAgent(newState, history);
+        updateHistory(history, actionState(newState, nextAction));
+        return simulateAgent(world, newState, history);
     }
 };
 
+
 var start = newState(0, 5);
-//simulateAgent(start, initHistory(start));
+/*
+var history = simulateAgent(makeWorld(), start, initHistory(start));
 
+Enummerate(function () {
+    var agentParams = uniformDraw()
 
+    var likelihood = function(history, i, totalLike) { 
+        if (i < history.length) {
+            var actionDist = agent(history[i]);
+            var like = actionDist.score([],history[i].action);
+            return likelihood(history, i+1, totalLike + like);
+        } else {
+            return totalLike;
+        }
+    };
+    
+    factor(likelihood(history, 0, 0));
+    return agenParams;
+});
+*/
 
-
+simulateAgent(makeWorld(), start, initHistory(start));
