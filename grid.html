@@ -41,7 +41,7 @@
 
                 var color = { 
                     blocked : 'grey',
-                    terminal: new paper.Color(1,0,.5, .5),
+                    terminal: new paper.Color(1,0,.2, .5),
                     agent : 'blue'
                  };
 
@@ -58,7 +58,7 @@
                     return path;
                 };
 
-                var paint = function(coords, shape, group) {
+                var addShapes = function(coords, shape, group) {
                     for (var i = 0; i < coords.length; i++) {
                         var copy = shape.clone();
                         copy.position = scaleCoords(coords[i]);
@@ -66,15 +66,20 @@
                     }
                 };      
 
-                var paintUtils = function(coords, shape, group) {
+                var addUtils = function(coords, shape, group) {
                     for (var i = 0; i < coords.length; i++) {
                         var copy = shape.clone();
                         copy.position = scaleCoords([coords[i][0], coords[i][1]]);
+                        var u = coords[i][2];
                         if (coords[i][2] > 0) { 
-                            copy.fillColor = new paper.Color(0, 1, 0, coords[i][2]/10);
+                            copy.fillColor = new paper.Color(0, 1, 0, u/10);
                         } else {
-                            copy.fillColor = new paper.Color(1, 0, 0, -coords[i][2]/10);
+                            copy.fillColor = new paper.Color(1, 0, 0, -u/10);
                         }
+
+                        var offset = .45;
+                        var label = makeLabel({content : u, fontSize : 4, point : [coords[i][0] + offset/3, coords[i][1] + offset]});
+                        group.addChild(label);
 
                         group.addChild(copy);
                     }
@@ -97,9 +102,9 @@
                     var terminalSquare = makeSquare(color.terminal);
                     var square = makeSquare(color.blocked);
                     var group = new paper.Group();
-                    paintUtils(world.utils, terminalSquare, group);
-                    paint(world.blockedStates, square, group);
-                    paint(world.terminals, terminalSquare, group);
+                    addUtils(world.utils, terminalSquare, group);
+                    addShapes(world.blockedStates, square, group);
+                    addShapes(world.terminals, terminalSquare, group);
                     addAgentPath(world.path, group);
                     group.addChildren(_.map(world.labels, makeLabel));
                     group.fitBounds(paper.view.bounds);
